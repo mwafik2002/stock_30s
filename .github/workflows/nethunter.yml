@@ -30,7 +30,7 @@ jobs:
         export CROSS_COMPILE=aarch64-linux-gnu-
         export KBUILD_BUILD_USER=NetHunter
         export KBUILD_BUILD_HOST=GitHub
-        make ARCH=arm64 defconfig
+        make ARCH=arm64 a30s_defconfig
         make -j$(nproc) O=out ARCH=arm64 CC=clang CROSS_COMPILE=aarch64-linux-gnu-
 
     - name: Prepare Flashable ZIP
