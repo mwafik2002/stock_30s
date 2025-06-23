@@ -28,6 +28,7 @@ jobs:
         export ARCH=arm64
         export SUBARCH=arm64
         export CROSS_COMPILE=aarch64-linux-gnu-
+        export ANDROID_MAJOR_VERSION=11
         export KBUILD_BUILD_USER=NetHunter
         export KBUILD_BUILD_HOST=GitHub
         make ARCH=arm64 a30s_defconfig
