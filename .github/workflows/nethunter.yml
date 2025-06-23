@@ -1,0 +1,49 @@
+name: Build NetHunter Kernel for A30s
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Clone Kernel Source
+      uses: actions/checkout@v3
+
+    - name: Install Dependencies
+      run: |
+        sudo apt update
+        sudo apt install -y build-essential git clang lld bc bison flex libssl-dev libncurses5-dev libelf-dev
+
+    - name: Set up Toolchain
+      run: |
+        git clone --depth=1 https://github.com/ClangBuiltLinux/llvm-project clang
+        export PATH=$PWD/clang/bin:$PATH
+
+    - name: Build Kernel
+      run: |
+        export ARCH=arm64
+        export SUBARCH=arm64
+        export CROSS_COMPILE=aarch64-linux-gnu-
+        export KBUILD_BUILD_USER=NetHunter
+        export KBUILD_BUILD_HOST=GitHub
+        make ARCH=arm64 defconfig
+        make -j$(nproc) O=out ARCH=arm64 CC=clang CROSS_COMPILE=aarch64-linux-gnu-
+
+    - name: Prepare Flashable ZIP
+      run: |
+        git clone https://github.com/osm0sis/AnyKernel3 anykernel
+        cp out/arch/arm64/boot/Image.gz-dtb anykernel/zImage
+        cd anykernel
+        zip -r9 Nethunter-A30s-Kernel.zip *
+
+    - name: Upload to Releases
+      uses: ncipollo/release-action@v1
+      with:
+        tag: a30s-nethunter
+        name: NetHunter Kernel for A30s
+        artifacts: "anykernel/Nethunter-A30s-Kernel.zip"
+        token: ${{ secrets.GITHUB_TOKEN }}
