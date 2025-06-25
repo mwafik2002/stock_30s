@@ -1,0 +1,23 @@
+name: Build NetHunter Kernel for A30s
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Clone Kernel Source
+      uses: actions/checkout@v3
+
+    - name: Install Dependencies
+      run: |
+        sudo apt update
+        sudo apt install -y build-essential git clang lld bc bison flex libssl-dev libncurses5-dev libelf-dev \
+        gcc-aarch64-linux-gnu binutils-aarch64-linux-gnu device-tree-compiler
+
+    - name: Set up Clang Toolchain
+      run: |
