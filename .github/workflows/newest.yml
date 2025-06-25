@@ -21,3 +21,49 @@ jobs:
 
     - name: Set up Clang Toolchain
       run: |
+        git clone --depth=1 https://github.com/ClangBuiltLinux/llvm-project clang
+        echo "$PWD/clang/bin" >> $GITHUB_PATH
+
+    - name: Fix script permissions
+      run: |
+        chmod +x scripts/clang-android.sh || true
+
+    - name: Configure Kernel
+      run: |
+        export ARCH=arm64
+        export SUBARCH=arm64
+        export CROSS_COMPILE=aarch64-linux-gnu-
+        export ANDROID_MAJOR_VERSION=11
+        export KBUILD_BUILD_USER=NetHunter
+        export KBUILD_BUILD_HOST=GitHub
+
+        make O=out ARCH=arm64 a30s_defconfig
+
+    - name: Disable VDSO for Clang compatibility
+      run: |
+        sed -i '/CONFIG_COMPAT_VDSO/d' out/.config
+        echo "# CONFIG_COMPAT_VDSO is not set" >> out/.config
+        make O=out ARCH=arm64 olddefconfig
+
+    - name: Build Kernel
+      run: |
+        make -j$(nproc) O=out ARCH=arm64 CC=clang CROSS_COMPILE=aarch64-linux-gnu-
+
+    - name: Concatenate Image.gz and DTB
+      run: |
+        cat out/arch/arm64/boot/Image.gz out/arch/arm64/boot/dts/exynos/*.dtb > out/arch/arm64/boot/Image.gz-dtb
+
+    - name: Prepare Flashable ZIP (AnyKernel3)
+      run: |
+        git clone https://github.com/osm0sis/AnyKernel3 anykernel
+        cp out/arch/arm64/boot/Image.gz-dtb anykernel/zImage
+        cd anykernel
+        zip -r9 Nethunter-A30s-Kernel.zip *
+
+    - name: Upload to Releases
+      uses: ncipollo/release-action@v1
+      with:
+        tag: a30s-nethunter
+        name: NetHunter Kernel for A30s
+        artifacts: "anykernel/Nethunter-A30s-Kernel.zip"
+        token: ${{ secrets.GITHUB_TOKEN }}
