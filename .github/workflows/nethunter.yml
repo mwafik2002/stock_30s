@@ -23,6 +23,10 @@ jobs:
         git clone --depth=1 https://github.com/ClangBuiltLinux/llvm-project clang
         export PATH=$PWD/clang/bin:$PATH
 
+    - name: Fix script permissions
+      run: |
+        chmod +x scripts/clang-android.sh || true
+
     - name: Build Kernel
       run: |
         export ARCH=arm64
