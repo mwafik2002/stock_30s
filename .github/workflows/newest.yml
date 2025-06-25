@@ -50,33 +50,33 @@ jobs:
     - name: Patch DTC Lexer to fix yylloc error
       run: |
         cat << 'EOF' > fix_dtc.patch
-diff --git a/scripts/dtc/dtc-lexer.l b/scripts/dtc/dtc-lexer.l
-index c600603044f3..cf7707be43aa 100644
---- a/scripts/dtc/dtc-lexer.l
-+++ b/scripts/dtc/dtc-lexer.l
-@@ -38,7 +38,6 @@ LINECOMMENT   "//".*\n
+          diff --git a/scripts/dtc/dtc-lexer.l b/scripts/dtc/dtc-lexer.l
+          index c600603044f3..cf7707be43aa 100644
+          --- a/scripts/dtc/dtc-lexer.l
+          +++ b/scripts/dtc/dtc-lexer.l
+          @@ -38,7 +38,6 @@ LINECOMMENT   "//".*\n
  #include "srcpos.h"
  #include "dtc-parser.tab.h"
 
--YYLTYPE yylloc;
- extern bool treesource_error;
+          -YYLTYPE yylloc;
+            extern bool treesource_error;
 
- /* CAUTION: this will stop working if we ever use yyless() or yyunput() */
-diff --git a/scripts/dtc/dtc-lexer.lex.c_shipped b/scripts/dtc/dtc-lexer.lex.c_shipped
-index 2c862bc86ad0..e3663ce1af5d 100644
---- a/scripts/dtc/dtc-lexer.lex.c_shipped
-+++ b/scripts/dtc/dtc-lexer.lex.c_shipped
-@@ -631,7 +631,6 @@ char *yytext;
+            /* CAUTION: this will stop working if we ever use yyless() or yyunput() */
+           diff --git a/scripts/dtc/dtc-lexer.lex.c_shipped b/scripts/dtc/dtc-lexer.lex.c_shipped
+           index 2c862bc86ad0..e3663ce1af5d 100644
+           --- a/scripts/dtc/dtc-lexer.lex.c_shipped
+           +++ b/scripts/dtc/dtc-lexer.lex.c_shipped
+           @@ -631,7 +631,6 @@ char *yytext;
  #include "srcpos.h"
  #include "dtc-parser.tab.h"
 
--YYLTYPE yylloc;
- extern bool treesource_error;
+          -YYLTYPE yylloc;
+          extern bool treesource_error;
 
- /* CAUTION: this will stop working if we ever use yyless() or yyunput() */
-EOF
+          /* CAUTION: this will stop working if we ever use yyless() or yyunput() */
+          EOF
 
-        git apply fix_dtc.patch
+           git apply fix_dtc.patch
 
     - name: Build Kernel
       run: |
