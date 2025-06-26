@@ -74,9 +74,9 @@ jobs:
         sed -i 's/__init_begin - 1/__init_begin/' arch/arm64/kernel/setup.c
         sed -i 's/_end - 1/_end/' arch/arm64/kernel/setup.c
         
-        # Workaround for missing uh.elf
-        mkdir -p init
-        dd if=/dev/zero of=init/uh.elf bs=1 count=0 2>/dev/null
+        # Create empty uh.elf in build directory
+        mkdir -p out/init
+        touch out/init/uh.elf
 
     - name: Build Kernel
       run: |
