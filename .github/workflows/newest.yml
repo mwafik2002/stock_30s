@@ -1,3 +1,4 @@
+
 name: Build NetHunter Kernel for A30s
 
 on:
@@ -8,10 +9,11 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    timeout-minutes: 90  # Added build timeout
 
     steps:
     - name: Clone Kernel Source
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4  # Updated to v4
 
     - name: Install Dependencies
       run: |
@@ -19,16 +21,12 @@ jobs:
         sudo apt install -y \
           build-essential git clang lld bc bison flex libssl-dev \
           libncurses5-dev libelf-dev gcc-aarch64-linux-gnu \
-          binutils-aarch64-linux-gnu device-tree-compiler
+          binutils-aarch64-linux-gnu device-tree-compiler libslang2-dev
 
     - name: Set up Clang Toolchain
-      run: |
-        git clone --depth=1 https://github.com/ClangBuiltLinux/llvm-project clang
-        echo "$PWD/clang/bin" >> $GITHUB_PATH
-
-    - name: Fix script permissions
-      run: |
-        chmod +x scripts/clang-android.sh || true
+      uses: ClangBuiltLinux/setup-clang@v1  # More reliable method
+      with:
+        version: '17'
 
     - name: Configure Kernel
       run: |
@@ -43,41 +41,19 @@ jobs:
 
     - name: Disable VDSO for Clang compatibility
       run: |
-        sed -i '/CONFIG_COMPAT_VDSO/d' out/.config
-        echo "# CONFIG_COMPAT_VDSO is not set" >> out/.config
+        # More robust config modification
+        ./scripts/config --file out/.config --disable COMPAT_VDSO
         make O=out ARCH=arm64 olddefconfig
 
     - name: Patch DTC Lexer to fix yylloc error
       run: |
-        echo "Applying DTC patch..."
-        cat > fix_dtc.patch <<EOF
-diff --git a/scripts/dtc/dtc-lexer.l b/scripts/dtc/dtc-lexer.l
-index c600603044f3..cf7707be43aa 100644
---- a/scripts/dtc/dtc-lexer.l
-+++ b/scripts/dtc/dtc-lexer.l
-@@ -38,7 +38,6 @@ LINECOMMENT   "//".*\\n
- #include "srcpos.h"
- #include "dtc-parser.tab.h"
-
--YYLTYPE yylloc;
- extern bool treesource_error;
-
- /* CAUTION: this will stop working if we ever use yyless() or yyunput() */
-diff --git a/scripts/dtc/dtc-lexer.lex.c_shipped b/scripts/dtc/dtc-lexer.lex.c_shipped
-index 2c862bc86ad0..e3663ce1af5d 100644
---- a/scripts/dtc/dtc-lexer.lex.c_shipped
-+++ b/scripts/dtc/dtc-lexer.lex.c_shipped
-@@ -631,7 +631,6 @@ char *yytext;
- #include "srcpos.h"
- #include "dtc-parser.tab.h"
-
--YYLTYPE yylloc;
- extern bool treesource_error;
-
- /* CAUTION: this will stop working if we ever use yyless() or yyunput() */
-EOF
-
-        git apply fix_dtc.patch
+        # Apply patch only if needed
+        if [ -f scripts/dtc/dtc-lexer.l ]; then
+          sed -i '/YYLTYPE yylloc;/d' scripts/dtc/dtc-lexer.l
+        fi
+        if [ -f scripts/dtc/dtc-lexer.lex.c_shipped ]; then
+          sed -i '/YYLTYPE yylloc;/d' scripts/dtc/dtc-lexer.lex.c_shipped
+        fi
 
     - name: Build Kernel
       run: |
@@ -89,7 +65,8 @@ EOF
         export KBUILD_BUILD_HOST=GitHub
         export HOSTCFLAGS="-Wno-error"
 
-        make -j$(nproc) O=out ARCH=arm64 CC=clang CROSS_COMPILE=aarch64-linux-gnu-
+        # Use LLVM=1 for full clang toolchain
+        make -j$(($(nproc) + 1)) O=out ARCH=arm64 LLVM=1
 
     - name: Concatenate Image.gz and DTB
       run: |
@@ -97,15 +74,21 @@ EOF
 
     - name: Prepare Flashable ZIP (AnyKernel3)
       run: |
-        git clone https://github.com/osm0sis/AnyKernel3 anykernel
-        cp out/arch/arm64/boot/Image.gz-dtb anykernel/zImage
-        cd anykernel
-        zip -r9 Nethunter-A30s-Kernel.zip *
+        git clone https://github.com/osm0sis/AnyKernel3
+        cp out/arch/arm64/boot/Image.gz-dtb AnyKernel3/zImage
+        cd AnyKernel3
+        zip -r9 ../Nethunter-A30s-Kernel.zip *
 
-    - name: Upload to Releases
-      uses: ncipollo/release-action@v1
+    - name: Upload Artifact
+      uses: actions/upload-artifact@v4
       with:
-        tag: a30s-nethunter
-        name: NetHunter Kernel for A30s
-        artifacts: "anykernel/Nethunter-A30s-Kernel.zip"
-        token: ${{ secrets.GITHUB_TOKEN }}
+        name: NetHunter-A30s-Kernel
+        path: Nethunter-A30s-Kernel.zip
+
+    - name: Create Release
+      if: github.ref == 'refs/heads/main'
+      uses: softprops/action-gh-release@v1
+      with:
+        tag_name: kernel-$(date +%Y%m%d%H%M)
+        files: Nethunter-A30s-Kernel.zip
+        body: "Automated NetHunter kernel build for Galaxy A30s"
