@@ -180,7 +180,7 @@ int tfa_get_tap_pattern(tfa98xx_handle_t handle)
 /*
  * interrupt bit function to clear
  */
-int tfa_irq_clear(tfa98xx_handle_t handle, enum tfa9912_irq bit)
+int tfa_irq_clear(tfa98xx_handle_t handle, int bit)
 {
 	unsigned char reg;
 
