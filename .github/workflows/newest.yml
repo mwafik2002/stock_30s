@@ -82,7 +82,7 @@ jobs:
         touch out/init/uh.elf
 
     - name: Build Kernel
-      run: |
+      run: |  
         export ARCH=arm64
         export SUBARCH=arm64
         export CROSS_COMPILE=aarch64-linux-gnu-
@@ -90,9 +90,11 @@ jobs:
         export KBUILD_BUILD_USER=NetHunter
         export KBUILD_BUILD_HOST=GitHub
         export KCFLAGS="-Wno-error=array-bounds -Wno-error=stringop-overflow \
-          -Wno-error=stringop-overread -Wno-error=array-compare \
-          -Wno-error=misleading-indentation -Wno-error=dangling-pointer \
-          -Wno-error=address -Wno-error=address-of-packed-member"
+         -Wno-error=stringop-overread -Wno-error=array-compare \
+         -Wno-error=misleading-indentation -Wno-error=dangling-pointer \
+         -Wno-error=address -Wno-error=address-of-packed-member \
+         -Wno-array-compare -Wno-array-bounds \
+         -Wno-stringop-overread -Wno-stringop-overflow"
         make -j$(($(nproc) + 1)) O=out ARCH=arm64 LLVM=1
 
     - name: Concatenate Image.gz and DTB
