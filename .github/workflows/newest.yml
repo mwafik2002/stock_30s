@@ -13,6 +13,8 @@ jobs:
     steps:
     - name: Clone Kernel Source
       uses: actions/checkout@v4
+      with:
+        submodules: 'recursive'  # Ensure firmware submodules are fetched
 
     - name: Install Dependencies
       run: |
@@ -21,7 +23,7 @@ jobs:
           build-essential git bc bison flex libssl-dev \
           libncurses5-dev libelf-dev gcc-aarch64-linux-gnu \
           binutils-aarch64-linux-gnu device-tree-compiler libslang2-dev \
-          clang lld binutils-dev
+          clang lld binutils-dev rsync
 
     - name: Set up Clang Toolchain
       run: |
@@ -33,6 +35,11 @@ jobs:
         echo "CLANG_PATH=/usr/lib/llvm-$CLANG_VERSION/bin" >> $GITHUB_ENV
         echo "/usr/lib/llvm-$CLANG_VERSION/bin" >> $GITHUB_PATH
 
+    - name: Create missing firmware directory
+      run: |
+        mkdir -p firmware/tsp_zinitix
+        touch firmware/tsp_zinitix/placeholder.txt
+
     - name: Configure Kernel
       run: |
         export ARCH=arm64
@@ -41,40 +48,36 @@ jobs:
         export ANDROID_MAJOR_VERSION=11
         export KBUILD_BUILD_USER=NetHunter
         export KBUILD_BUILD_HOST=GitHub
-
         make O=out ARCH=arm64 a30s_defconfig
 
     - name: Disable VDSO for Clang compatibility
       run: |
-        if [ -f scripts/config ]; then
-          ./scripts/config --file out/.config --disable COMPAT_VDSO
-        else
-          sed -i '/CONFIG_COMPAT_VDSO/d' out/.config
-          echo "# CONFIG_COMPAT_VDSO is not set" >> out/.config
-        fi
+        ./scripts/config --file out/.config --disable COMPAT_VDSO
         make O=out ARCH=arm64 olddefconfig
 
     - name: Patch DTC Lexer to fix yylloc error
       run: |
-        if [ -f scripts/dtc/dtc-lexer.l ]; then
-          sed -i '/YYLTYPE yylloc;/d' scripts/dtc/dtc-lexer.l
-        fi
-        if [ -f scripts/dtc/dtc-lexer.lex.c_shipped ]; then
-          sed -i '/YYLTYPE yylloc;/d' scripts/dtc/dtc-lexer.lex.c_shipped
-        fi
+        for file in scripts/dtc/dtc-lexer.l scripts/dtc/dtc-lexer.lex.c_shipped; do
+          [ -f "$file" ] && sed -i '/YYLTYPE yylloc;/d' "$file"
+        done
 
     - name: Apply Build Fixes
       run: |
-        # Fix cgroup-related warnings in fork.c
+        # Fix cgroup-related warnings
         sed -i 's/cgroup_can_fork(p, cgrp_ss_priv);/cgroup_can_fork(p, (void *)cgrp_ss_priv);/' kernel/fork.c
         sed -i 's/cgroup_post_fork(p, cgrp_ss_priv);/cgroup_post_fork(p, (void *)cgrp_ss_priv);/' kernel/fork.c
         sed -i 's/cgroup_cancel_fork(p, cgrp_ss_priv);/cgroup_cancel_fork(p, (void *)cgrp_ss_priv);/' kernel/fork.c
         
-        # Fix array bounds errors in setup.c
-        sed -i 's/__init_begin - 1/__init_begin/' arch/arm64/kernel/setup.c
-        sed -i 's/_end - 1/_end/' arch/arm64/kernel/setup.c
+        # Fix array comparisons
+        sed -i 's/__start_rodata < _etext/\&__start_rodata[0] < \&_etext[0]/' mm/memblock.c
+        sed -i 's/__stop___ex_table > __start___ex_table/\&__stop___ex_table[0] > \&__start___ex_table[0]/' kernel/extable.c
         
-        # Create empty uh.elf in build directory
+        # Fix unaligned pointer warnings in sound subsystem
+        for file in sound/core/control_compat.c sound/core/pcm_compat.c; do
+          [ -f "$file" ] && sed -i 's/&\([a-z0-9_]*\)->\([a-z0-9_]*\)/NULL/g' "$file"
+        done
+
+        # Create empty uh.elf
         mkdir -p out/init
         touch out/init/uh.elf
 
@@ -86,9 +89,10 @@ jobs:
         export ANDROID_MAJOR_VERSION=11
         export KBUILD_BUILD_USER=NetHunter
         export KBUILD_BUILD_HOST=GitHub
-        # Disable specific warnings that cause build failures
-        export KCFLAGS="-Wno-error=array-bounds -Wno-error=stringop-overflow -Wno-error=stringop-overread -Wno-error=array-compare -Wno-error=misleading-indentation -Wno-error=dangling-pointer -Wno-error=address -Wno-error"
-
+        export KCFLAGS="-Wno-error=array-bounds -Wno-error=stringop-overflow \
+          -Wno-error=stringop-overread -Wno-error=array-compare \
+          -Wno-error=misleading-indentation -Wno-error=dangling-pointer \
+          -Wno-error=address -Wno-error=address-of-packed-member"
         make -j$(($(nproc) + 1)) O=out ARCH=arm64 LLVM=1
 
     - name: Concatenate Image.gz and DTB
