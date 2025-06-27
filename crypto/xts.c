@@ -334,7 +334,7 @@ out_put_alg:
 	return inst;
 }
 
-static void free(struct crypto_instance *inst)
+static void free_crypto_instance(struct crypto_instance *inst)
 {
 	crypto_drop_spawn(crypto_instance_ctx(inst));
 	kfree(inst);
