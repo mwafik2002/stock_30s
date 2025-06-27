@@ -343,7 +343,7 @@ static void free_crypto_instance(struct crypto_instance *inst)
 static struct crypto_template crypto_tmpl = {
 	.name = "xts",
 	.alloc = alloc,
-	.free = free,
+	.free = free_crypto_instance,
 	.module = THIS_MODULE,
 };
 
