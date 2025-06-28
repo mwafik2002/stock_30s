@@ -1,0 +1,58 @@
+#!/bin/bash
+
+# Kernel Compilation Warning Fix Script
+
+# Exit on first error
+set -e
+
+# Function to check and fix left shift warnings
+fix_left_shift_warnings() {
+  echo "Checking and fixing left shift warnings..."
+  
+  # Find files with potential left shift issues
+  find ./arch/arm64/include/asm/ -type f \( -name "memory.h" -o -name "*.h" \) | while read -r file; do
+    # Use sed to modify BIT() macro definitions
+    sed -i 's/BIT(nr)/BIT_ULL(nr)/g' "$file"
+    
+    # Additional safety for large shift counts
+    sed -i 's/1 << /BIT_ULL(/g' "$file"
+  done
+}
+
+# Function to address pointer cast warnings
+fix_pointer_cast_warnings() {
+  echo "Checking and fixing pointer cast warnings..."
+  
+  # Modify compat.h and kvm_host.h to use proper casting
+  files=(
+    "./arch/arm64/include/asm/compat.h"
+    "./arch/arm64/include/asm/kvm_host.h"
+  )
+  
+  for file in "${files[@]}"; do
+    # Add type-safe casting macros
+    sed -i 's/(__force.*)/(__force uintptr_t)/g' "$file"
+    
+    # Replace direct integer to pointer casts with proper conversion
+    sed -i 's/(void \*)(unsigned long)/(void *)(uintptr_t)/g' "$file"
+  done
+}
+
+# Main execution
+main() {
+  echo "Starting kernel warning fix process..."
+  
+  # Apply fixes
+  fix_left_shift_warnings
+  fix_pointer_cast_warnings
+  
+  echo "Kernel warning fixes completed."
+}
+
+# Run the main function
+main
+  
+}
+
+# Run the main function with provided directory or current directory
+main "$@"
