@@ -1,0 +1,53 @@
+#!/bin/bash
+
+# Kernel Compilation Warning Fix Script
+
+# Function to handle left shift warnings
+fix_left_shift_warnings() {
+  echo "Fixing left shift warnings in ARM64 memory headers"
+  
+  # Modify memory.h to use safer bit manipulation
+  sed -i 's/BIT(nr)/((1UL) << (nr))/g' ./arch/arm64/include/asm/memory.h
+}
+
+# Function to address pointer cast warnings
+fix_pointer_cast_warnings() {
+  echo "Fixing pointer cast warnings in ARM64 headers"
+  
+  # Add type checks and safer casting in compat.h
+  sed -i 's/\(.*\)((unsigned long)\(.*\))/\1(uintptr_t)\2/g' ./arch/arm64/include/asm/compat.h
+  
+  # Similar modifications in kvm_host.h
+  sed -i 's/\(.*\)((unsigned long)\(.*\))/\1(uintptr_t)\2/g' ./arch/arm64/include/asm/kvm_host.h
+}
+
+# Main warning fix function
+fix_kernel_warnings() {
+  fix_left_shift_warnings
+  fix_pointer_cast_warnings
+}
+
+# Execute warning fixes
+fix_kernel_warnings
+  
+    # Add type-safe casting macros
+    sed -i 's/(__force.*)/(__force uintptr_t)/g' "$file"
+    
+    # Replace direct integer to pointer casts with proper conversion
+    sed -i 's/(void \*)(unsigned long)/(void *)(uintptr_t)/g' "$file"
+  done
+}
+
+# Main execution
+main() {
+  echo "Starting kernel warning fix process..."
+  
+  # Apply fixes
+  fix_left_shift_warnings
+  fix_pointer_cast_warnings
+  
+  echo "Kernel warning fixes completed."
+}
+
+# Run the main function
+main
