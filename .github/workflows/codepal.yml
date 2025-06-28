@@ -38,7 +38,7 @@ jobs:
       run: |
         cd kernel
         # Replace with actual defconfig for Galaxy A30s
-        make ARCH=arm64 CROSS_COMPILE=arm-linux-gnueabi- defconfig
+        make ARCH=arm64 CROSS_COMPILE=arm-linux-gnueabi- nethunter_defconfig
     
     - name: Build Kernel
       run: |
