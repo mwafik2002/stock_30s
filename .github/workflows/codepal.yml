@@ -58,7 +58,7 @@ jobs:
         cp arch/arm64/boot/dts/samsung/exynos7904-a30s*.dtb artifacts/
     
     - name: Upload Kernel Artifacts
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: galaxy-a30s-kernel-${{ github.event.inputs.kernel_version || '4.4.177' }}
         path: kernel/artifacts
@@ -68,7 +68,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Download Artifacts
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4
       with:
         name: galaxy-a30s-kernel-${{ github.event.inputs.kernel_version || '4.4.177' }}
     
