@@ -1,0 +1,85 @@
+name: Galaxy A30s Custom Kernel Build
+
+on:
+  workflow_dispatch:
+    inputs:
+      kernel_version:
+        description: 'Kernel Version'
+        required: true
+        default: '4.4.177'
+
+jobs:
+  build-kernel:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v3
+    
+    - name: Set up build environment
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          git \
+          ccache \
+          device-tree-compiler \
+          gcc-arm-linux-gnueabi \
+          gcc-arm-none-eabi \
+          bc \
+          bison \
+          flex \
+          libncurses5-dev \
+          libssl-dev \
+          wget \
+          tar
+    
+    - name: Clone Kernel Source
+      run: |
+        git clone --depth=1 https://github.com/samsung-a30s/kernel_samsung_a30s.git kernel
+        cd kernel
+        git checkout ${{ github.event.inputs.kernel_version || '4.4.177' }}
+    
+    - name: Prepare Kernel Configuration
+      run: |
+        cd kernel
+        # Replace with actual defconfig for Galaxy A30s
+        make ARCH=arm64 CROSS_COMPILE=arm-linux-gnueabi- a30s_defconfig
+    
+    - name: Build Kernel
+      run: |
+        cd kernel
+        make ARCH=arm64 CROSS_COMPILE=arm-linux-gnueabi- -j$(nproc)
+    
+    - name: Prepare Kernel Artifacts
+      run: |
+        cd kernel
+        mkdir -p artifacts
+        cp arch/arm64/boot/Image artifacts/
+        cp arch/arm64/boot/dts/samsung/exynos7904-a30s*.dtb artifacts/
+    
+    - name: Upload Kernel Artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: galaxy-a30s-kernel-${{ github.event.inputs.kernel_version || '4.4.177' }}
+        path: kernel/artifacts
+  
+  release:
+    needs: build-kernel
+    runs-on: ubuntu-latest
+    steps:
+    - name: Download Artifacts
+      uses: actions/download-artifact@v3
+      with:
+        name: galaxy-a30s-kernel-${{ github.event.inputs.kernel_version || '4.4.177' }}
+    
+    - name: Create GitHub Release
+      uses: softprops/action-gh-release@v1
+      with:
+        files: |
+          Image
+          *.dtb
+        tag_name: v${{ github.event.inputs.kernel_version || '4.4.177' }}
+        generate_release_notes: true
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  
