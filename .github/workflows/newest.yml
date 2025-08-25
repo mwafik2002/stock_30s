@@ -23,17 +23,7 @@ jobs:
           build-essential git bc bison flex libssl-dev \
           libncurses5-dev libelf-dev gcc-aarch64-linux-gnu \
           binutils-aarch64-linux-gnu device-tree-compiler libslang2-dev \
-          clang lld binutils-dev rsync
-
-    - name: Set up Clang Toolchain
-      run: |
-        CLANG_VERSION=17
-        wget https://apt.llvm.org/llvm.sh
-        chmod +x llvm.sh
-        sudo ./llvm.sh $CLANG_VERSION
-        sudo apt install -y clang-$CLANG_VERSION lld-$CLANG_VERSION
-        echo "CLANG_PATH=/usr/lib/llvm-$CLANG_VERSION/bin" >> $GITHUB_ENV
-        echo "/usr/lib/llvm-$CLANG_VERSION/bin" >> $GITHUB_PATH
+          rsync
 
     - name: Create missing firmware directory
       run: |
@@ -50,7 +40,7 @@ jobs:
         export KBUILD_BUILD_HOST=GitHub
         make O=out ARCH=arm64 a30s_defconfig
 
-    - name: Disable VDSO for Clang compatibility
+    - name: Disable VDSO for GCC/Clang compatibility
       run: |
         ./scripts/config --file out/.config --disable COMPAT_VDSO
         make O=out ARCH=arm64 olddefconfig
@@ -76,13 +66,12 @@ jobs:
         for file in sound/core/control_compat.c sound/core/pcm_compat.c; do
           [ -f "$file" ] && sed -i 's/&\([a-z0-9_]*\)->\([a-z0-9_]*\)/NULL/g' "$file"
         done
-
         # Create empty uh.elf
         mkdir -p out/init
         touch out/init/uh.elf
 
     - name: Build Kernel
-      run: |  
+      run: |
         export ARCH=arm64
         export SUBARCH=arm64
         export CROSS_COMPILE=aarch64-linux-gnu-
@@ -95,7 +84,7 @@ jobs:
          -Wno-error=address -Wno-error=address-of-packed-member \
          -Wno-array-compare -Wno-array-bounds \
          -Wno-stringop-overread -Wno-stringop-overflow"
-        make -j$(($(nproc) + 1)) O=out ARCH=arm64 LLVM=1
+        make -j$(($(nproc) + 1)) O=out ARCH=arm64
 
     - name: Concatenate Image.gz and DTB
       run: |
