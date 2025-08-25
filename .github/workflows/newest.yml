@@ -14,7 +14,7 @@ jobs:
     - name: Clone Kernel Source
       uses: actions/checkout@v4
       with:
-        submodules: 'recursive'  # Ensure firmware submodules are fetched
+        submodules: 'recursive'
 
     - name: Install Dependencies
       run: |
@@ -40,7 +40,7 @@ jobs:
         export KBUILD_BUILD_HOST=GitHub
         make O=out ARCH=arm64 a30s_defconfig
 
-    - name: Disable VDSO for GCC/Clang compatibility
+    - name: Disable VDSO for GCC compatibility
       run: |
         ./scripts/config --file out/.config --disable COMPAT_VDSO
         make O=out ARCH=arm64 olddefconfig
@@ -69,6 +69,10 @@ jobs:
         # Create empty uh.elf
         mkdir -p out/init
         touch out/init/uh.elf
+
+    - name: Patch thread_info.h (fix union uw error)
+      run: |
+        sed -i '/union uw uw;/i\\tunion uw { unsigned long val; };' include/linux/thread_info.h
 
     - name: Build Kernel
       run: |
